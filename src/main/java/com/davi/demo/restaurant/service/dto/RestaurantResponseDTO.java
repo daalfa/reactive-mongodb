@@ -1,6 +1,6 @@
 package com.davi.demo.restaurant.service.dto;
 
-public record RestaurantDTO (
+public record RestaurantResponseDTO(
         String name,
         Double rating,
         Double price,

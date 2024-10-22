@@ -1,4 +1,4 @@
-package com.davi.demo.restaurant.service.web;
+package com.davi.demo.restaurant.service.controller;
 
 import com.davi.demo.restaurant.service.dto.RestaurantResponseDTO;
 import com.davi.demo.restaurant.service.service.RestaurantService;

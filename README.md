@@ -1,3 +1,5 @@
+[![Java CI with Maven](https://github.com/daalfa/reactive-mongodb/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/daalfa/reactive-mongodb/actions/workflows/maven.yml)
+
 # Restaurant Matching Service
 This is a simple restaurant search service with multiple search criteria.  
 It is possible to use up to 5 criteria:  

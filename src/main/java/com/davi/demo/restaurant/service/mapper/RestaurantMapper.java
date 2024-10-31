@@ -7,5 +7,5 @@ import org.mapstruct.MappingConstants;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface RestaurantMapper  {
-    RestaurantResponseDTO toDTO(Restaurant entity);
+    RestaurantResponseDTO toRestaurantResponseDTO(Restaurant entity);
 }

@@ -1,5 +1,6 @@
 package com.davi.demo.restaurant.service.service;
 
+import com.davi.demo.restaurant.service.dto.RestaurantRequestDTO;
 import com.davi.demo.restaurant.service.dto.RestaurantResponseDTO;
 import com.davi.demo.restaurant.service.enums.Param;
 import com.davi.demo.restaurant.service.mapper.RestaurantMapper;
@@ -15,7 +16,6 @@ import reactor.core.publisher.Flux;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.davi.demo.restaurant.service.enums.Param.*;
 import static com.davi.demo.restaurant.service.model.Restaurant.*;
@@ -25,10 +25,10 @@ import static java.util.Optional.ofNullable;
 @Slf4j
 public class RestaurantService {
 
-    private static final int RESULT_LIMIT = 10;
+    private static final int RESULT_LIMIT = 20;
     private static final String SORT_BY_SEPARATOR = ",";
-    private static final String SORT_DIRECTION_SEPARATOR = " ";
-    private static final Map<Param, String> PARAM_FIELD_MAP = Map.of(
+    private static final String SORT_DIRECTION_SEPARATOR = "\\s+";
+    private static final Map<Param, String> PARAM_TO_FIELD_MAP = Map.of(
             NAME, FIELD_NAME,
             CUISINE, FIELD_CUISINE,
             DISTANCE, FIELD_DISTANCE,
@@ -43,24 +43,18 @@ public class RestaurantService {
         this.mapper = mapper;
     }
 
-    public Flux<RestaurantResponseDTO> getRestaurants(Map<String, String> queryParamMap) {
+    public Flux<RestaurantResponseDTO> getRestaurants(RestaurantRequestDTO request) {
 
-        Map<Param, String> pMap = convertParamMap(queryParamMap);
+        Query query = buildQuery(request);
 
-        Query query = buildQuery(pMap);
-
-        return mongoTemplate.find(query, Restaurant.class).map(mapper::toDTO);
+        return mongoTemplate.find(query, Restaurant.class)
+                .map(mapper::toRestaurantResponseDTO);
     }
 
-    private Map<Param, String> convertParamMap(Map<String, String> map) {
-        return map.entrySet().stream()
-                .collect(Collectors.toMap(e -> MAP_VALUE_PARAM.get(e.getKey()), Map.Entry::getValue));
-    }
+    private Query buildQuery(RestaurantRequestDTO request) {
 
-    private Query buildQuery(Map<Param, String> pMap) {
-
-        Criteria criteria = buildCriteria(pMap);
-        Sort sorting = buildSorting(pMap);
+        Criteria criteria = buildCriteria(request);
+        Sort sorting = buildSorting(request);
 
         Query query = new Query();
         query.addCriteria(criteria);
@@ -68,41 +62,40 @@ public class RestaurantService {
                 .include(FIELD_NAME, FIELD_CUISINE, FIELD_RATING, FIELD_PRICE, FIELD_DISTANCE)
                 .exclude(FIELD_ID);
         query.with(sorting);
-        query.limit(RESULT_LIMIT);
+//        query.limit(RESULT_LIMIT);
         return query;
     }
 
-    /**
-     * Build a Query Criteria based on a list of parameters.
-     * If a parameter is null, then ignore the condition.
+    /*
+     * Build a Query Criteria based on not null properties.
+     * If a properties is null, then ignore the condition.
      * Return empty Criteria if all parameters are null.
-     * This is not completely dynamic as each parameter has a type and a where clause.
      */
-    private Criteria buildCriteria(Map<Param, String> pMap) {
+    private Criteria buildCriteria(RestaurantRequestDTO request) {
 
         List<Criteria> criteriaList = new ArrayList<>();
 
-        ofNullable(pMap.get(NAME))
+        ofNullable(request.name())
                 .map(restaurantNameFilter ->
                         Criteria.where(FIELD_NAME).regex(restaurantNameFilter, "i"))
                 .ifPresent(criteriaList::add);
 
-        ofNullable(pMap.get(CUISINE))
+        ofNullable(request.cuisine())
                 .map(restaurantCuisineFilter ->
                         Criteria.where(FIELD_CUISINE).regex(restaurantCuisineFilter, "i"))
                 .ifPresent(criteriaList::add);
 
-        ofNullable(pMap.get(RATING))
+        ofNullable(request.rating())
                 .map(restaurantMinRatingFilter ->
                         Criteria.where(FIELD_RATING).gte(restaurantMinRatingFilter))
                 .ifPresent(criteriaList::add);
 
-        ofNullable(pMap.get(PRICE))
+        ofNullable(request.price())
                 .map(restaurantMaxAvgPriceFilter ->
                         Criteria.where(FIELD_PRICE).lte(restaurantMaxAvgPriceFilter))
                 .ifPresent(criteriaList::add);
 
-        ofNullable(pMap.get(DISTANCE))
+        ofNullable(request.distance())
                 .map(restaurantMaxDistanceFilter ->
                         Criteria.where(FIELD_DISTANCE).lte(restaurantMaxDistanceFilter))
                 .ifPresent(criteriaList::add);
@@ -110,8 +103,14 @@ public class RestaurantService {
         return criteriaList.isEmpty() ? new Criteria() : new Criteria().andOperator(criteriaList);
     }
 
-    //$orderby=Name desc, Distance asc, Rating desc
-    private Sort buildSorting(Map<Param, String> pMap) {
+    /*
+     * Create a sorting filter based on order_by parameter.
+     * Syntax is: property asc/desc comma separated.
+     * Example 1: order_by=name desc
+     * Example 2: order_by=distance asc, Rating desc, Price asc
+     * By default the 3 sorting above will apply if not overwritten.
+     */
+    private Sort buildSorting(RestaurantRequestDTO request) {
 
         Sort.Order defaultDistanceOrder = new Sort.Order(Sort.Direction.ASC, FIELD_DISTANCE);
         Sort.Order defaultRatingOrder = new Sort.Order(Sort.Direction.DESC, FIELD_RATING);
@@ -123,30 +122,30 @@ public class RestaurantService {
 
         List<Sort.Order> orders = new ArrayList<>();
 
-        String orderBy = pMap.get(ORDER_BY);
+        String orderBy = request.order_by();
 
         if(orderBy != null) {
             for(String sortElement : orderBy.split(SORT_BY_SEPARATOR)) {
-                String[] operators = sortElement.split(SORT_DIRECTION_SEPARATOR);
-                String property = operators[0];
-                String direction = operators[1];
+                String[] parts = sortElement.strip().toLowerCase().split(SORT_DIRECTION_SEPARATOR);
+                String property = parts[0];
+                String direction = parts[1];
 
-                Param pProperty = MAP_VALUE_PARAM.get(property);
+                Param param = VALUE_TO_PARAM_MAP.get(property);
 
-                if(pProperty == DISTANCE) {
+                if(param == DISTANCE) {
                     hasCustomDistanceSorting = true;
                 }
-                if(pProperty == RATING) {
+                if(param == RATING) {
                     hasCustomRatingSorting = true;
                 }
-                if(pProperty == PRICE) {
+                if(param == PRICE) {
                     hasCustomPriceSorting = true;
                 }
 
                 Sort.Direction sortDirection = direction.equalsIgnoreCase(Sort.Direction.DESC.name())
                         ? Sort.Direction.DESC : Sort.Direction.ASC;
 
-                orders.add(new Sort.Order(sortDirection, PARAM_FIELD_MAP.get(pProperty)));
+                orders.add(new Sort.Order(sortDirection, PARAM_TO_FIELD_MAP.get(param)));
             }
         }
 

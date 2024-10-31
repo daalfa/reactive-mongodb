@@ -1,4 +1,4 @@
-package com.davi.demo.restaurant.service.exceptions;
+package com.davi.demo.restaurant.service.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

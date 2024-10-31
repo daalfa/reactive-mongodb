@@ -3,9 +3,12 @@ package com.davi.demo.restaurant.service.model;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.index.TextIndexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -19,9 +22,9 @@ public class Restaurant {
     @Field(name = FIELD_NAME)
     private String name;
 
-    @TextIndexed
+    @Indexed
     @Field(name = FIELD_CUISINE)
-    private String cuisine; //todo: make a collection of cuisines
+    private List<String> cuisine;
 
     @Field(name = FIELD_RATING)
     private Double rating;

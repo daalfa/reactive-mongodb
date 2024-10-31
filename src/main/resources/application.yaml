@@ -6,8 +6,10 @@ spring:
       database: app-database
       username: app-user
       password: app-user-pwd
-#      authentication-database: admin
       auto-index-creation: true
+#      authentication is done directly in app-database
+#      authentication-database: admin
+#      mongosh mongo --host localhost --port 27017 -u app-user -p --authenticationDatabase app-database
 
   output:
     ansi:

@@ -1,13 +1,11 @@
 package com.davi.demo.restaurant.service;
 
-import com.davi.demo.restaurant.service.util.HelperCSV;
-import com.davi.demo.restaurant.service.repository.CuisineRepository;
-import com.davi.demo.restaurant.service.repository.RestaurantRepository;
-import org.springframework.beans.factory.annotation.Value;
+import com.mongodb.reactivestreams.client.MongoClient;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import reactor.core.publisher.Flux;
 
 @SpringBootApplication
 public class Application {
@@ -17,16 +15,12 @@ public class Application {
 	}
 
 	@Bean
-	public CommandLineRunner addRestaurantsAtStartup(RestaurantRepository restaurantRepository,
-													 CuisineRepository cuisineRepository,
-													 @Value("${application.initializeDatabase:false}") Boolean initDB) {
+	public CommandLineRunner checkConnection(MongoClient mongoClient) {
 		return args -> {
-			if(initDB) {
-				restaurantRepository.deleteAll().block();
-				cuisineRepository.deleteAll().block();
-
-				HelperCSV.LoadEntitiesFromCSV(cuisineRepository, restaurantRepository);
-			}
+			Flux.from(mongoClient.listDatabaseNames())
+					.doOnNext(dbName -> System.out.println("MongoDB connection successful! Database: " + dbName))
+					.doOnError(e -> System.err.println("Failed to connect to MongoDB: " + e.getMessage()))
+					.blockFirst();
 		};
 	}
 }
